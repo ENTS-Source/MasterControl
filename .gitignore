@@ -1,2 +1,4 @@
 **/*.pyc
 /reference
+/env
+/config/mastercontrol.ini
