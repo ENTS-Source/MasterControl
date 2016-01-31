@@ -2,3 +2,7 @@
 /reference
 /env
 /config/mastercontrol.ini
+/logs
+*.egg-info
+/dist
+**/*/__pycache__

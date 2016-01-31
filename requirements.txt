@@ -1,0 +1,4 @@
+sqlalchemy
+irc
+pyserial
+mysql-connector-python-rf

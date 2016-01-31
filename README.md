@@ -5,4 +5,13 @@ them access to the space depending on their status in aMember Pro (the member ma
 
 ### Setup / Install
 
-TODO
+MasterControl is tested against Python 3.5.X.
+
+Installing MasterControl:
+
+```
+$ pip install virtualenv
+$ virtualenv env
+$ env/Scripts/pip install -r requirements.txt
+$ env/Scripts/python -u mastercontrol.py
+```
