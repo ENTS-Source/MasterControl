@@ -9,6 +9,8 @@ import errno
 from mcp.db import db
 from mcp.devices import serial_monitor
 from mcp.irc import irc
+from mcp.amp import amp
+from mcp.notifications import notifications
 
 print("Starting up...")
 
@@ -28,6 +30,8 @@ logger = logging.getLogger(__name__)
 db.init(config)
 serial_monitor.init(config)
 irc.init(config)
+notifications.init(config)
+amp.init(config)
 
 def signal_handler(signal, frame):
     print("^C received - shutting down server.")

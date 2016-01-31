@@ -36,6 +36,7 @@ class Member(Base):
     fob = Column('fob_field', String(32))
     last_unlock = Column(DateTime)
     announce = Column(Boolean)
+    amp_user_id = Column(Integer)
 
     def getAnnounceName(self):
         name = None
@@ -62,3 +63,39 @@ class DoorLog(Base):
     member = relationship(Member)
     door_id = Column(Integer, ForeignKey('doors.id'))
     door = relationship(Door)
+
+class AmpMember(Base):
+    __tablename__ = "amp_members"
+    id = Column(Integer, primary_key=True)
+    amp_id = Column(Integer)
+    first_name = Column(String(100))
+    last_name = Column(String(100))
+    email = Column(String(100))
+    announce = Column(Boolean)
+    nickname = Column(String(100))
+    fob = Column(String(100))
+    fob_status = Column(String(100))
+    subscriptions = relationship("AmpMemberSubscription", back_populates="member")
+
+    def isFobEnabled(self):
+        if self.fob_status == 'enabled':
+            return True
+        elif self.fob_status == 'disabled':
+            return False
+        else:
+            for subscription in self.subscriptions:
+                if subscription.isTodayInRange():
+                    return True
+        return False
+
+class AmpMemberSubscription(Base):
+    __tablename__ = "amp_member_subscriptions"
+    id = Column(Integer, primary_key=True)
+    member_id = Column(Integer, ForeignKey("amp_members.id"))
+    member = relationship(AmpMember, back_populates="subscriptions")
+    date_from = Column(DateTime)
+    date_to = Column(DateTime)
+
+    def isTodayInRange(self):
+        now = datetime.now()
+        return now >= self.date_from and now <= self.date_to

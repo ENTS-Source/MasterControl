@@ -1,7 +1,8 @@
 from mcp.devices import plugin
 from mcp.db import db
-from mcp.db.db import Door, DoorLog, Member
+from mcp.db.db import Door, DoorLog, Member, AmpMember, AmpMemberSubscription
 from mcp.devices import serial_monitor
+from mcp.notifications.notifications import notifyDirectors
 from mcp.irc import irc
 from datetime import datetime
 import logging
@@ -24,10 +25,20 @@ def handle_door_status(lib, dev, cmdLine, cmdArgs):
 
     logger.debug('Incoming request for access to door #%s from fob %s' % (doorArg, fobArg))
 
-    member = db.session.query(Member).filter(Member.fob == fobArg).first()
     door = db.session.query(Door).filter(Door.code == doorArg).first()
+    ampMember = db.session.query(AmpMember).filter(AmpMember.fob == fobArg).first()
 
-    if (member is None):
+    member = None
+    if ampMember is not None:
+        member = db.session.query(Member).filter(Member.amp_user_id == ampMember.amp_id).first()
+    else:
+        member = db.session.query(Member).filter(Member.fob == fobArg).first()
+
+    if member is not None and member.amp_user_id is not None and ampMember is None:
+        logger.error("Failed to find aMember Pro member for fob %s" % fobArg)
+        return
+
+    if (member is None and ampMember is None):
         logger.warning('Unknown fob number: %s' % fobArg)
 
         door_log = DoorLog(message='Fob %s not found in database: %s' % (fobArg, cmdLine))
@@ -42,7 +53,15 @@ def handle_door_status(lib, dev, cmdLine, cmdArgs):
         db.session.commit()
 
     if (door is not None and member is not None):
-        # TODO: Check membership status
+        if ampMember is not None:
+            logger.debug("Fob %s is in aMember Pro (User #%s)" % (ampMember.fob, ampMember.amp_id))
+            if not ampMember.isFobEnabled():
+                logger.warning("Fob %s exists in aMember Pro but is not enabled. AMP User #%s. ACCESS DENIED." % (ampMember.fob, ampMember.amp_id))
+                return
+        else:
+            logger.warning("Fob %s does not exist in aMember Pro" % fobArg)
+            notifyDirectors('Unregistered fob (%s) accessed the space' % fobArg, "Member was allowed access to the building. Member: %s %s (%s)" % (member.first_name, member.last_name, member.email))
+
         logger.info('Permitting access to %s for member #%s (%s)' % (door.name, member.id, member.fob))
 
         # Admit access command
