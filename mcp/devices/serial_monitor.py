@@ -14,9 +14,9 @@ CMD_START = 0xFE
 CMD_END = 0xFF
 
 # After 15 seconds, ask for device status
-HeartbeatStatusDelta = timedelta(seconds=1)
+HeartbeatStatusDelta = timedelta(seconds=15)
 # After 2 minutes, assume device failure
-HeartbeatFailureDelta = timedelta(seconds=60)
+HeartbeatFailureDelta = timedelta(seconds=120)
 
 class Host:
     address = 16

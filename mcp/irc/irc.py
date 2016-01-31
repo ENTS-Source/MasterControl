@@ -70,6 +70,9 @@ def connect():
     connection = client.server().connect(host, port, nick, real_name)
 
     connection.add_global_handler('welcome', on_connect)
+    connection.add_global_handler('disconnect', on_disconnect)
+    connection.add_global_handler('privmsg', on_privmsg)
+    connection.add_global_handler('pubmsg', on_pubmsg)
 
 def run_bot(config):
     global client
@@ -89,7 +92,50 @@ def run_bot(config):
     except:
         logger.error('Error running IRC Bot', exc_info=True)
 
+def handle_message(connection, source, target, message):
+    if not message.startswith('!'): return
+
+    try:
+        command = message[1:message.index(' ')]
+    except ValueError as e:
+        command = message[1:]
+
+    logger.debug("Handling command: " + command)
+
+    processed = False
+    for func in callables:
+        try:
+            for func_command in func.commands:
+                if func_command == command:
+                    processed = True
+                    func(connection, source, target, message)
+        except Exception as e:
+            logger.error("Error processing command %s" % command, exc_info=True)
+    if not processed:
+        logger.warning("Unknown IRC command: %s" % command)
+
 # Event handlers
 def on_connect(connection, event):
     logger.debug("Joining channel %s" % channel)
     connection.join(channel)
+
+def on_disconnect(connection, event):
+    logger.warning("Lost connection to IRC. Reconnecting...")
+    connect()
+
+def on_privmsg(connection, event):
+    logger.debug('#IRC Event - ' + event.type + ' ' + event.source + ' ' + event.target + ' ' + str(event.arguments))
+
+    try:
+        target = event.source[:event.source.index('!')]
+        handle_message(connection, event.source, target, event.arguments[0])
+    except Exception as e:
+        logger.error('Error handling private IRC message (%s: %s)' % (event.source, str(event.arguments)), exc_info=True)
+
+def on_pubmsg(connection, event):
+    logger.debug('#IRC Event - ' + event.type + ' ' + event.source + ' ' + event.target + ' ' + str(event.arguments))
+
+    try:
+        handle_message(connection, event.source, event.target, event.arguments[0])
+    except Exception as e:
+        logger.error('Error handling public IRC message (%s: %s)' % (event.source, str(event.arguments)), exc_info=True)
