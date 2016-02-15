@@ -5,13 +5,19 @@ import logging
 import threading
 import time
 import os
+import sys
 
 logger = None
 thread = None
 serial = None
 
-CMD_START = 0xFE
-CMD_END = 0xFF
+# Detect Python version and set expected values for constants
+if sys.version_info[0] < 3:
+    CMD_START = '\xFE'
+    CMD_END = '\xFF'
+else:
+    CMD_START = 0xFE
+    CMD_END = 0xFF
 
 # After 15 seconds, ask for device status
 HeartbeatStatusDelta = timedelta(seconds=15)

@@ -15,8 +15,8 @@ def init(config):
     global ampApi
     global thread
     logger = logging.getLogger(__name__)
-    url = config['amp']['url']
-    ampApi = AmpApi(config['amp']['api_key'], url)
+    url = config.get('amp', 'url')
+    ampApi = AmpApi(config.get('amp', 'api_key'), url)
     logger.info("Initializing aMember Pro integration with API URL %s" % url)
     thread = threading.Thread(target=run_members_fetch, args=[])
     thread.daemon = True
