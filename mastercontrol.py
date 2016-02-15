@@ -1,4 +1,3 @@
-from configparser import ConfigParser
 import time
 import sys
 import signal
@@ -10,6 +9,12 @@ from mcp.db import db
 from mcp.devices import serial_monitor
 from mcp.irc import irc
 from mcp.amp import amp
+
+# Detect Python version and import the right config parser
+if sys.version_info[0] < 3:
+    import ConfigParser
+else:
+    from configparser import ConfigParser
 
 print("Starting up...")
 
