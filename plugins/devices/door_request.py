@@ -2,7 +2,6 @@ from mcp.devices import plugin
 from mcp.db import db
 from mcp.db.db import Door, DoorLog, Member, AmpMember, AmpMemberSubscription
 from mcp.devices import serial_monitor
-from mcp.notifications.notifications import notifyDirectors
 from mcp.irc import irc
 from datetime import datetime
 import logging
@@ -60,7 +59,8 @@ def handle_door_status(lib, dev, cmdLine, cmdArgs):
                 return
         else:
             logger.warning("Fob %s does not exist in aMember Pro" % fobArg)
-            notifyDirectors('Unregistered fob (%s) accessed the space' % fobArg, "Member was allowed access to the building. Member: %s %s (%s)" % (member.first_name, member.last_name, member.email))
+            # TODO: Reimplement notification system (events?)
+            #notifyDirectors('Unregistered fob (%s) accessed the space' % fobArg, "Member was allowed access to the building. Member: %s %s (%s)" % (member.first_name, member.last_name, member.email))
 
         logger.info('Permitting access to %s for member #%s (%s)' % (door.name, member.id, member.fob))
 

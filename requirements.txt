@@ -3,4 +3,3 @@ irc
 pyserial
 mysql-connector-python-rf
 git+https://github.com/ENTS-Source/AMP-API-Python.git@master#egg=ents-amp-api
-git+https://github.com/Azelphur/pyPushBullet.git

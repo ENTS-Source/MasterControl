@@ -1,5 +1,4 @@
 from ents import AmpApi
-from mcp.notifications.notifications import notifyDirectors
 from mcp.db import db
 from mcp.db.db import AmpMember, AmpMemberSubscription, Member
 from datetime import datetime
@@ -76,7 +75,8 @@ def do_fetch_members():
             db.session.add(dbSubscription)
         if member.fobNumber not in previousFobs:
             freshMembers += 1
-            notifyDirectors('Fob %s added to cache' % member.fobNumber, 'Fob assigned to %s %s (%s)' % (member.firstName, member.lastName, member.email))
+            # TODO: Reimplement notification system (events?)
+            #notifyDirectors('Fob %s added to cache' % member.fobNumber, 'Fob assigned to %s %s (%s)' % (member.firstName, member.lastName, member.email))
             previousFobs.append(member.fobNumber)
     cleanupQuery = db.session.query(Member).filter(Member.amp_user_id, Member.amp_user_id.notin_(ampUserIds))
     removed = cleanupQuery.count()
