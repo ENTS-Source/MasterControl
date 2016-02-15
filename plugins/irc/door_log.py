@@ -1,6 +1,6 @@
 from mcp.db import db
 from mcp.db.db import DoorLog, Door, Member
-from mcp.irc import plugin
+from mcp.ircbot import plugin
 from sqlalchemy import or_
 import logging
 

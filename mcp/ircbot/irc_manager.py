@@ -1,10 +1,16 @@
-from queue import Queue
 from mcp.plugins import plugins
 import irc.client
 import logging
 import threading
 import os
 import time
+import sys
+
+# Detect Python version and import the right modules
+if sys.version_info[0] < 3:
+    from Queue import Queue
+else:
+    from queue import Queue
 
 thread = None
 logger = None

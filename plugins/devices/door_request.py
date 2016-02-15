@@ -2,7 +2,7 @@ from mcp.devices import plugin
 from mcp.db import db
 from mcp.db.db import Door, DoorLog, Member, AmpMember, AmpMemberSubscription
 from mcp.devices import serial_monitor
-from mcp.irc import irc
+from mcp.ircbot import irc_manager as irc
 from datetime import datetime
 import logging
 

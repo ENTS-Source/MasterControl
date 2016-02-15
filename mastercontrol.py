@@ -7,12 +7,12 @@ import os
 import errno
 from mcp.db import db
 from mcp.devices import serial_monitor
-from mcp.irc import irc
+from mcp.ircbot import irc_manager as irc
 from mcp.amp import amp
 
-# Detect Python version and import the right config parser
+# Detect Python version and import the right modules
 if sys.version_info[0] < 3:
-    import ConfigParser
+    from ConfigParser import ConfigParser
 else:
     from configparser import ConfigParser
 
