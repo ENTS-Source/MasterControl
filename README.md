@@ -5,11 +5,11 @@ them access to the space depending on their status in aMember Pro (the member ma
 
 ### Setup / Install
 
-MasterControl is tested against Python 3.5.1 and Python 2.7.6.
+MasterControl is tested against Python 3.5 and Python 2.7
 
 #### Installing MasterControl
 
-Python 3.5.1:
+Python 3.5:
 
 ```
 $ pip install virtualenv
@@ -18,7 +18,7 @@ $ env/Scripts/pip install -r requirements.txt
 $ env/Scripts/python -u mastercontrol.py
 ```
 
-Python 2.7.6:
+Python 2.7:
 
 ```
 $ pip install virtualenv
