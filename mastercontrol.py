@@ -9,6 +9,7 @@ from mcp.db import db
 from mcp.devices import serial_monitor
 from mcp.ircbot import irc_manager as irc
 from mcp.amp import amp
+from mcp.web import web
 
 # Detect Python version and import the right modules
 if sys.version_info[0] < 3:
@@ -35,6 +36,7 @@ db.init(config)
 serial_monitor.init(config)
 irc.init(config)
 amp.init(config)
+web.init(config)
 
 def signal_handler(signal, frame):
     print("^C received - shutting down server.")
