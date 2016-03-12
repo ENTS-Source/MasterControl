@@ -27,75 +27,62 @@ def init(config):
 class Member(Base):
     __tablename__ = "members"
     id = Column(Integer, primary_key=True)
-    first_name = Column(String(100))
-    last_name = Column(String(100))
-    twitter_name = Column(String(100))
-    nickname = Column(String(100))
-    irc_name = Column(String(100))
-    email = Column(String(100))
-    fob = Column('fob_field', String(32))
+    first_name = Column(String(255))
+    last_name = Column(String(255))
+    nickname = Column(String(255))
+    fob = Column('fob_number', String(255))
     last_unlock = Column(DateTime)
     announce = Column(Boolean)
-    amp_user_id = Column(Integer)
+    director = Column(Boolean)
+    subscriptions = relationship("MemberSubscription", back_populates="member")
 
     def getAnnounceName(self):
-        name = None
-        if (self.irc_name):
-            name = self.irc_name
-        elif (self.nickname):
-            name = self.nickname
-        else:
-            name = self.first_name
-        return name
+        if (self.nickname is not None and self.nickname.strip() != ''):
+            return self.nickname
+        return self.first_name
+
+    def hasAccess(self):
+        if (self.director):
+            return True
+        for subscription in self.subscriptions:
+            if (subscription.isTodayInRange()):
+                return True
+        return False
 
 class Door(Base):
-    __tablename__ = "doors"
+    __tablename__ = "door_cache"
     id = Column(Integer, primary_key=True)
-    code = Column(Integer)
-    name = Column(String(50))
+    name = Column(String(255))
 
-class DoorLog(Base):
-    __tablename__ = "door_logs"
+class AccessLog(Base):
+    __tablename__ = "access_log"
     id = Column(Integer, primary_key=True)
-    message = Column(String(1024))
     timestamp = Column(DateTime, default=datetime.now)
     member_id = Column(Integer, ForeignKey('members.id'))
     member = relationship(Member)
-    door_id = Column(Integer, ForeignKey('doors.id'))
+    door_id = Column(Integer, ForeignKey('door_cache.id'))
     door = relationship(Door)
+    fob = Column('fob_number', String(255))
+    access_permitted = Column(Boolean)
+    uploaded = Column(Boolean)
 
-class AmpMember(Base):
-    __tablename__ = "amp_members"
+class MemberSubscription(Base):
+    __tablename__ = "member_subscriptions"
     id = Column(Integer, primary_key=True)
-    amp_id = Column(Integer)
-    first_name = Column(String(100))
-    last_name = Column(String(100))
-    email = Column(String(100))
-    announce = Column(Boolean)
-    nickname = Column(String(100))
-    fob = Column(String(100))
-    fob_status = Column(String(100))
-    subscriptions = relationship("AmpMemberSubscription", back_populates="member")
-
-    def isFobEnabled(self):
-        if self.fob_status == 'enabled':
-            return True
-        elif self.fob_status == 'disabled':
-            return False
-        else:
-            for subscription in self.subscriptions:
-                if subscription.isTodayInRange():
-                    return True
-        return False
-
-class AmpMemberSubscription(Base):
-    __tablename__ = "amp_member_subscriptions"
-    id = Column(Integer, primary_key=True)
-    member_id = Column(Integer, ForeignKey("amp_members.id"))
-    member = relationship(AmpMember, back_populates="subscriptions")
+    member_id = Column(Integer, ForeignKey("members.id"))
+    member = relationship(Member, back_populates="subscriptions")
     date_from = Column(DateTime)
     date_to = Column(DateTime)
 
     def isTodayInRange(self):
         now = datetime.now()
         return now >= self.date_from and now <= self.date_to
+
+class LegacyFob(Base):
+    __tablename__ = "fallback_fobs"
+    id = Column(Integer, primary_key=True)
+    first_name = Column(String(255))
+    last_name = Column(String(255))
+    nickname = Column(String(255))
+    email = Column(String(255))
+    fob_number = Column(String(255))

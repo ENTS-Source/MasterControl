@@ -2,10 +2,9 @@ import logging
 import os
 import imp
 
-logger = logging.getLogger(__name__)
-
 def get_plugins(plugin_dir, module_name):
     plugins = []
+    logger = logging.getLogger(__name__)
 
     module_name = "MCP_safe_module_name_" + module_name.replace('.', '_')
 

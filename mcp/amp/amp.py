@@ -1,6 +1,6 @@
 from ents import AmpApi
 from mcp.db import db
-from mcp.db.db import AmpMember, AmpMemberSubscription, Member
+from mcp.db.db import Member, MemberSubscription
 from datetime import datetime
 import threading
 import time
@@ -9,6 +9,7 @@ import logging
 logger = None
 ampApi = None
 thread = None
+fetching = False
 
 def init(config):
     global logger
@@ -28,59 +29,48 @@ def run_members_fetch():
         time.sleep(120)
 
 def do_fetch_members():
+    global fetching
+    if (fetching):
+        logger.warning("Skipping AMP fetch: Fetch in progress")
+        return
+    fetching = True
     logger.info('Fetching latest member information from aMember Pro')
     members = ampApi.members().all()
-    freshMembers = 0
-    previousFobs = []
-    for member in db.session.query(AmpMember).all():
-        previousFobs.append(member.fob)
-    ampUserIds = []
-    db.session.query(AmpMemberSubscription).delete()
-    db.session.query(AmpMember).delete()
     for member in members:
-        ampUserIds.append(member.userId)
         if member.fobNumber.strip() == '' or member.fobNumber == 'N/A':
-            member.fobNumber = None
-        dbAmpMember = AmpMember(
-            amp_id = member.userId,
-            first_name = member.firstName,
-            last_name = member.lastName,
-            email = member.email,
-            announce = member.mcpAnnounce,
-            nickname = member.mcpNickname,
-            fob = member.fobNumber,
-            fob_status = member.fobStatus
-        )
-        db.session.add(dbAmpMember)
-        existingMember = db.session.query(Member).filter(Member.amp_user_id == member.userId).first()
+            member.fobNumber = ''
+        # First try to find the member in the database
+        existingMember = db.session.query(Member).filter(Member.id == member.userId).first()
         if existingMember is None:
             logger.debug("Creating member record for AMP user #%s" % member.userId)
-            dbMember = Member(
+            existingMember = Member(
+                id = member.userId,
                 first_name = member.firstName,
                 last_name = member.lastName,
-                email = member.email,
                 announce = member.mcpAnnounce,
                 nickname = member.mcpNickname,
                 fob = member.fobNumber,
-                amp_user_id = member.userId,
-                last_unlock = datetime.min
+                last_unlock = datetime.min,
+                director = member.isDirector
             )
-            db.session.add(dbMember)
+            db.session.add(existingMember)
+        else:
+            existingMember.first_name = member.firstName
+            existingMember.last_name = member.lastName
+            existingMember.announce = member.mcpAnnounce
+            existingMember.nickname = member.mcpNickname
+            existingMember.fob = member.fobNumber
+            existingMember.director = member.isDirector
+            #db.session.update(existingMember)
+        db.session.query(MemberSubscription).filter(MemberSubscription.member_id == member.userId).delete()
         for access in member.access:
-            dbSubscription = AmpMemberSubscription(
-                member=dbAmpMember,
+            dbSubscription = MemberSubscription(
+                member=existingMember,
                 date_from = time.strptime(access.start, "%Y-%m-%d"),
                 date_to = time.strptime(access.end, "%Y-%m-%d")
             )
             db.session.add(dbSubscription)
-        if member.fobNumber not in previousFobs:
-            freshMembers += 1
-            # TODO: Reimplement notification system (events?)
-            #notifyDirectors('Fob %s added to cache' % member.fobNumber, 'Fob assigned to %s %s (%s)' % (member.firstName, member.lastName, member.email))
-            previousFobs.append(member.fobNumber)
-    cleanupQuery = db.session.query(Member).filter(Member.amp_user_id, Member.amp_user_id.notin_(ampUserIds))
-    removed = cleanupQuery.count()
-    cleanupQuery.delete(synchronize_session=False)
-    logger.info("Members added from aMember Pro: %i" % (freshMembers - removed))
+    logger.info("Finished processing aMember Pro user database")
     db.session.expire_all()
     db.session.commit()
+    fetching = False
