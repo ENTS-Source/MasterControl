@@ -1,15 +1,19 @@
 from ents import AmpApi
 from mcp.db import db
-from mcp.db.db import Member, MemberSubscription
+from mcp.db.db import Member, MemberSubscription, AccessLog
 from datetime import datetime
 import threading
 import time
 import logging
+import json
 
 logger = None
 ampApi = None
 thread = None
+
+# status flags (prevent duplicate calls)
 fetching = False
+uploading = False
 
 def init(config):
     global logger
@@ -25,8 +29,44 @@ def init(config):
 
 def run_members_fetch():
     while True:
-        do_fetch_members()
+        try:
+            do_fetch_members()
+            do_upload_access_log()
+        except:
+            logger.error("Error running AMP thread", exc_info=True)
         time.sleep(120)
+
+def do_upload_access_log():
+    global uploading
+    if (uploading):
+        logger.warning("Skipping AMP upload: Upload in progress")
+        return
+    uploading = True
+    try:
+        logger.info("Uploading access log to aMember Pro")
+        logEntries = db.session.query(AccessLog).filter(AccessLog.uploaded == False).all()
+        result = []
+        for log in logEntries:
+            entry = {
+                "timestamp": log.timestamp,
+                "member_id": log.member_id,
+                "door_id": log.door_id,
+                "fob": log.fob,
+                "access_permitted": log.access_permitted,
+                "id": log.id
+            }
+            result.append(entry)
+        ampApi.mastercontrol().uploadLog(result)
+        # DB update is done after upload to ensure that other transactions do
+        # not falsely save the log state.
+        for log in logEntries:
+            log.uploaded = True
+        db.session.expire_all()
+        db.session.commit()
+    except:
+        logger.error("Unexpected error uploading access log", exc_info=True)
+    logger.info("Finished uploading access log to aMember Pro");
+    uploading = False
 
 def do_fetch_members():
     global fetching
