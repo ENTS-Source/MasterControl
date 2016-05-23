@@ -1,5 +1,6 @@
 **/*.pyc
 /reference
+/reference2
 /env
 /config/mastercontrol.ini
 /logs

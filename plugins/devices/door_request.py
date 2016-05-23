@@ -1,16 +1,17 @@
 from mcp.devices import plugin
 from mcp.db import db
 from mcp.db.db import Door, AccessLog, Member, MemberSubscription, LegacyFob
-from mcp.devices import serial_monitor
-from mcp.ircbot import irc_manager as irc
 from datetime import datetime
 import logging
 
 config = None
+obs = None
 
-def configure(incConfig):
+def configure(incConfig, incObs):
     global config
+    global obs
     config = incConfig
+    obs = incObs
 
 def setup():
     global logger
@@ -18,7 +19,7 @@ def setup():
     logger.info("Setting up 'Door Request' plugin")
 
 @plugin.command('R')
-def handle_door_status(lib, dev, cmdLine, cmdArgs):
+def handle_door_status(dev, cmdLine, cmdArgs):
     fobArg = int(cmdArgs[2])
     doorArg = int(cmdArgs[1])
 
@@ -42,26 +43,19 @@ def handle_door_status(lib, dev, cmdLine, cmdArgs):
             access_log = AccessLog(door = door, fob = fobArg, access_permitted = True, uploaded = False)
             allowAccess = True
     else:
-        if (ampMember.hasAccess()):
+        if (ampMember.has_access()):
             access_log = AccessLog(door = door, member = ampMember, fob = fobArg, access_permitted = True, uploaded = False)
             allowAccess = True
         else:
             access_log = AccessLog(door = door, member = ampMember, fob = fobArg, access_permitted = False, uploaded = False)
 
     if (allowAccess and ampMember is not None):
-        # TODO: Event?
-        diffLastUnlock = (datetime.now() - (datetime.min if (ampMember.last_unlock is None) else ampMember.last_unlock)).total_seconds()
-        if (diffLastUnlock > config.getint('misc', 'announce_timeout')):
-            logger.debug('Announcing member presence')
-            irc.announceDoor(ampMember, door)
+        obs.trigger("door_unlock", ampMember, door)
         ampMember.last_unlock = datetime.now()
 
     if allowAccess:
         logger.info('Permitting access at door %s to fob %s' % (door.name, fobArg))
-
-        # Admit access command
-        # HACK: Assuming library for incoming device is serial_monitor
-        lib.write([serial_monitor.CMD_START, ord('A'), doorArg, ord('A')^doorArg, serial_monitor.CMD_END])
+        dev.admit_access(doorArg)
     else:
         logger.warning("Access denied for fob %s" % fobArg)
 

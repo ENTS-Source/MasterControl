@@ -1,25 +1,28 @@
-from ents import AmpApi
-from mcp.db import db
-from mcp.db.db import Member, MemberSubscription, AccessLog
-from datetime import datetime
 import threading
 import time
 import logging
 import json
+from ents import AmpApi
+from mcp.db import db
+from mcp.db.db import Member, MemberSubscription, AccessLog
+from datetime import datetime
 
 logger = None
 ampApi = None
 thread = None
+config = None
 
-# status flags (prevent duplicate calls)
+# status flags to prevent duplicate tasks
 fetching = False
 uploading = False
 
-def init(config):
+def init(incConfig, incObs):
     global logger
     global ampApi
     global thread
+    global config
     logger = logging.getLogger(__name__)
+    config = incConfig
     url = config.get('amp', 'url')
     ampApi = AmpApi(config.get('amp', 'api_key'), url)
     logger.info("Initializing aMember Pro integration with API URL %s" % url)
@@ -34,7 +37,7 @@ def run_members_fetch():
             do_upload_access_log()
         except:
             logger.error("Error running AMP thread", exc_info=True)
-        time.sleep(120)
+        time.sleep(config.getint('amp', 'update_seconds'))
 
 def do_upload_access_log():
     global uploading
@@ -49,7 +52,7 @@ def do_upload_access_log():
         for log in logEntries:
             entry = {
                 "timestamp": log.timestamp,
-                "member_id": log.member_id,
+                "member_id": log.member_id, # nullable
                 "door_id": log.door_id,
                 "fob": log.fob,
                 "access_permitted": log.access_permitted,
@@ -61,7 +64,6 @@ def do_upload_access_log():
         # not falsely save the log state.
         for log in logEntries:
             log.uploaded = True
-        db.session.expire_all()
         db.session.commit()
     except:
         logger.error("Unexpected error uploading access log", exc_info=True)
@@ -77,7 +79,7 @@ def do_fetch_members():
     logger.info('Fetching latest member information from aMember Pro')
     members = ampApi.members().all()
     for member in members:
-        if member.fobNumber.strip() == '' or member.fobNumber == 'N/A':
+        if member.fobNumber == None or member.fobNumber.strip() == '' or member.fobNumber == 'N/A':
             member.fobNumber = ''
         # First try to find the member in the database
         existingMember = db.session.query(Member).filter(Member.id == member.userId).first()
@@ -105,9 +107,10 @@ def do_fetch_members():
         db.session.query(MemberSubscription).filter(MemberSubscription.member_id == member.userId).delete()
         for access in member.access:
             dbSubscription = MemberSubscription(
-                member=existingMember,
+                member = existingMember,
                 date_from = time.strptime(access.start, "%Y-%m-%d"),
-                date_to = time.strptime(access.end, "%Y-%m-%d")
+                date_to = time.strptime(access.end, "%Y-%m-%d"),
+                buffer_days = access.bufferDays
             )
             db.session.add(dbSubscription)
     logger.info("Finished processing aMember Pro user database")

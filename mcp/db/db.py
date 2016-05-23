@@ -1,9 +1,9 @@
+import logging
 from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
 from sqlalchemy import create_engine
-from datetime import datetime
-import logging
+from datetime import datetime, timedelta
 
 logger = None
 engine = None
@@ -16,7 +16,7 @@ def init(config):
     global engine
     global session
     logger = logging.getLogger(__name__)
-    logger.info('Initializing database')
+    logger.info("Initializing database")
     engine = create_engine(config.get('database', 'connection'), pool_recycle=3600)
     Base.metadata.create_all(engine)
     Base.metadata.bind = engine
@@ -36,16 +36,16 @@ class Member(Base):
     director = Column(Boolean)
     subscriptions = relationship("MemberSubscription", back_populates="member")
 
-    def getAnnounceName(self):
+    def get_announce_name(self):
         if (self.nickname is not None and self.nickname.strip() != ''):
             return self.nickname
         return self.first_name
 
-    def hasAccess(self):
+    def has_access(self):
         if (self.director):
             return True
         for subscription in self.subscriptions:
-            if (subscription.isTodayInRange()):
+            if (subscription.is_today_in_range()):
                 return True
         return False
 
@@ -73,10 +73,16 @@ class MemberSubscription(Base):
     member = relationship(Member, back_populates="subscriptions")
     date_from = Column(DateTime)
     date_to = Column(DateTime)
+    buffer_days = Column(Integer)
 
-    def isTodayInRange(self):
+    def is_today_in_range(self):
         now = datetime.now()
-        return now >= self.date_from and now <= self.date_to
+        return (now >= self.date_from and now <= self.date_to) or self.can_be_lenient(self.buffer_days)
+
+    def can_be_lenient(self, extra_days):
+        now = datetime.now()
+        date_to = self.date_to + timedelta(days=extra_days)
+        return now >= self.date_from and now < date_to
 
 class LegacyFob(Base):
     __tablename__ = "fallback_fobs"

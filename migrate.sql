@@ -23,7 +23,8 @@ CREATE TABLE `member_subscriptions` (
   `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
   `member_id` INT NOT NULL REFERENCES `members`(`id`),
   `date_from` DATETIME NOT NULL,
-  `date_to` DATETIME NOT NULL
+  `date_to` DATETIME NOT NULL,
+  `buffer_days` INT NOT NULL
 );
 
 CREATE TABLE `fallback_fobs` (

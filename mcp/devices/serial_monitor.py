@@ -1,84 +1,88 @@
-from mcp.plugins import plugins
-from datetime import datetime, timedelta
-from serial import Serial
 import logging
 import threading
 import time
 import os
 import sys
+from serial import Serial
+from datetime import datetime, timedelta
+from mcp.plugins import plugins
 
 logger = None
 thread = None
 serial = None
+obs = None
 
-# Detect Python version and set expected values for constants
-if sys.version_info[0] < 3:
-    CMD_START = '\xFE'
-    CMD_END = '\xFF'
-else:
-    CMD_START = 0xFE
-    CMD_END = 0xFF
+CMD_START = '\xFE'
+CMD_END = '\xFF'
 
-# After 15 seconds, ask for device status
-HeartbeatStatusDelta = timedelta(seconds=15)
-# After 2 minutes, assume device failure
-HeartbeatFailureDelta = timedelta(seconds=120)
-
-class Host:
-    address = 16
-    is_active = False # assume not active by default to avoid health notifications
-    last_status_request = datetime.min
-    last_status = datetime.min
-
-hosts = []
-hosts.append(Host())
+HEARTBEAT_STATUS_DELTA = timedelta(seconds=15) # How often to poll for status
+HEARTBEAT_FAILURE_DELTA = timedelta(seconds=120) # When a device is considered broken
 
 callables = []
 
-def init(config):
+# TODO: Configurable?
+class Host:
+    address = 16
+    is_active = False # assume not active to avoid health checks
+    last_status_request = datetime.min
+    last_status = datetime.min
+
+    def __init__(self, serial):
+        self._serial = serial
+
+    def admit_access(self, doorNum):
+        self._serial.write([CMD_START, ord('A'), doorNum, ord('A')^doorNum, CMD_END])
+
+hosts = []
+
+def init(config, obsMain):
     global thread
     global logger
     global serial
+    global obs
     logger = logging.getLogger(__name__)
+    obs = obsMain
 
     portName = config.get('serial', 'port')
     baudRate = config.get('serial', 'baud')
 
-    logger.info('Initializing serial monitor (%s @ %s baud)' % (portName, baudRate))
+    logger.info("Initializing serial monitor (%s @ %s baud)" % (portName, baudRate))
     serial = Serial(portName, baudRate, timeout=config.getint('serial', 'timeout'))
 
-    setup_plugins(config)
+    # TODO: Configurable?
+    hosts.append(Host(serial))
+    load_commands(config, obsMain)
 
     thread = threading.Thread(target=watch_serial, args=[])
     thread.daemon = True
     thread.start()
 
-def setup_plugins(config):
-    logger.info('Loading device plugins')
+def load_commands(config, obsMain):
+    logger.info("Loading serial commands")
 
-    dev_plugins = plugins.get_plugins(os.path.join(os.path.dirname(__file__), '../../plugins/devices'), 'plugins.devices.')
+    dev_plugins = plugins.get_plugins(os.path.join(os.path.dirname(__file__), '..', '..', 'plugins', 'devices'), 'plugins.devices.')
     for plugin in dev_plugins:
         if (hasattr(plugin, 'configure')):
-            plugin.configure(config)
+            plugin.configure(config, obsMain)
         for func in plugin.__dict__.values():
             if (hasattr(func, 'command') and hasattr(func, '__call__')):
                 callables.append(func)
 
 def watch_serial():
-    logger.info('Starting serial monitor thread')
+    logger.info("Starting serial monitor thread")
     while True:
         for host in hosts:
             try:
-                # Delay at start so each attempt begins with waiting to ensure
-                # devices have a delay between attempted reads.
+                # Delay at start so each attempt begins with waiting to ensure devices
+                # have a delay between attempted reads
                 time.sleep(0.1)
 
                 # If status has not been recently received, request status
-                if (datetime.now() - host.last_status > HeartbeatStatusDelta):
+                if (datetime.now() - host.last_status > HEARTBEAT_STATUS_DELTA):
                     # If we've request status recently, wait before requesting against
-                    if (datetime.now() - host.last_status_request > HeartbeatStatusDelta):
+                    if(datetime.now() - host.last_status_request > HEARTBEAT_STATUS_DELTA):
                         host.last_status_request = datetime.now()
-                        logger.debug('Sending heartbeat to address: %s' % host.address)
+                        logger.debug("Sending heartbeat to address: %s" % host.address)
                         serial.write([CMD_START, ord('S'), ord('S'), CMD_END])
 
                 cmd = serial.readline()
@@ -90,7 +94,7 @@ def watch_serial():
 
                     cmdLine = bytearray(cmd[cmdStart + 1 : cmd.index(CMD_END)]).decode('utf-8')
 
-                    logger.debug('Read command: ' + cmdLine)
+                    logger.debug("Read command: %s" % cmdLine)
 
                     cmdArgs = cmdLine.split(',')
 
@@ -100,33 +104,29 @@ def watch_serial():
                     for func in callables:
                         try:
                             if (cmdArg == func.command):
-                                func(serial, host, cmdLine, cmdArgs)
+                                func(host, cmdLine, cmdArgs)
                                 cmdProcessed = True
                         except Exception as e:
-                            logger.error('Error calling plugin for command %s' % cmdLine, exc_info=True)
+                            logger.error("Error calling plugin for command %s" % cmdLine, exc_info=True)
 
                     if not cmdProcessed:
-                        logger.error('Invalid command (%s): unknown command type' % cmdLine)
+                        logger.error("Invalid command (%s): unknown command type" % cmdLine)
                 except ValueError as e:
-                    # No command found
-                    pass
+                    pass # no command found
                 except Exception as e:
-                    logger.error('Error processing command (%s)' % str(bytearray(cmd)), exc_info=True)
+                    logger.error("Error processing command (%s)" % str(bytearray(cmd)), exc_info=True)
 
-                # If device status has not been received by failure threshold, log and notify
-                # Process this after running commands so we don't get falsely notified of failures
-                # due to commands going out.
-                if (datetime.now() - host.last_status > HeartbeatFailureDelta):
-                    logger.error('MasterControl RFID communications down! Device: %s' % host.address)
 
-                    if host.is_active:
-                        # TODO: Notify of failure
-                        host.is_active = False
-
-                    # Prevent spamming of notifications
-                    host.last_status = datetime.now() - HeartbeatStatusDelta
+                # If device status has not been received by failure threshold, log and notify.
+                # Process this after running commands so we don't assume a device is broken when it is
+                # responding slowly to ping requests.
+                if (datetime.now() - host.last_status > HEARTBEAT_FAILURE_DELTA):
+                    logger.error("MasterControl RFID communications down! Device: %s" % host.address)
+                    obs.trigger('device_down', host)
+                    host.is_active = False
+                    host.last_status = datetime.now() - HEARTBEAT_STATUS_DELTA # prevents notifification spam
             except IOError as e:
                 pass
             except Exception as e:
-                logger.error('Error reading command', exc_info=True)
+                logger.error("Error reading command", exc_info=True)
                 time.sleep(5)

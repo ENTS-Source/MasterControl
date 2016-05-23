@@ -1,45 +1,41 @@
-import time
-import sys
-import signal
 import logging
 import logging.config
 import os
 import errno
+import signal
+import time
+from ConfigParser import ConfigParser
+from observable import Observable
 from mcp.db import db
 from mcp.devices import serial_monitor
-from mcp.ircbot import irc_manager as irc
+from mcp.matrix import matrix
 from mcp.amp import amp
 from mcp.web import web
-
-# Detect Python version and import the right modules
-if sys.version_info[0] < 3:
-    from ConfigParser import ConfigParser
-else:
-    from configparser import ConfigParser
 
 print("Starting up...")
 
 config = ConfigParser()
-config.read('config/mastercontrol.ini')
+config.read("config/mastercontrol.ini")
 
-# Setup logging
+# Start logging
 try:
     os.makedirs('logs')
 except OSError as exception:
     if exception.errno != errno.EEXIST:
         raise
-logging.config.fileConfig('config/logging.ini')
+logging.config.fileConfig("config/logging.ini")
 logger = logging.getLogger(__name__)
 
 # Setup components
+obs = Observable()
 db.init(config)
-serial_monitor.init(config)
-irc.init(config)
-amp.init(config)
-web.init(config)
+serial_monitor.init(config, obs)
+matrix.init(config, obs)
+amp.init(config, obs)
+web.init(config, obs)
 
 def signal_handler(signal, frame):
-    print("^C received - shutting down server.")
+    print("^C received - shutting down server")
     sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
