@@ -12,6 +12,7 @@ def init(incConfig, incObs):
     global config
     logger = logging.getLogger(__name__)
     config = incConfig
+    routes.init(config)
     port = config.getint('web', 'port')
     host = config.get('web', 'host')
     logger.info("Initializing web server on %s:%s" % (host, port))
