@@ -1,8 +1,6 @@
 sqlalchemy
 pyserial
 mysql-connector-python-rf
-git+https://github.com/ENTS-Source/AMP-API-Python.git@master#egg=ents-amp-api
 mysql-python
-flask
 observable
-git+https://github.com/matrix-org/matrix-python-sdk.git@master#egg=matrix-python-sdk
+https://github.com/pika/pika/tarball/master#egg=pika-master

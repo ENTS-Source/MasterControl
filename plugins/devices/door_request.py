@@ -35,6 +35,7 @@ def handle_door_status(dev, cmdLine, cmdArgs):
 
     allowAccess = False
     access_log = None
+    logger.debug("Fob = %s, AMP ID = %s, fallback = %s" % (fobArg, ('unknown' if ampMember is None else ampMember.id), (False if member is None else True)))
     if (ampMember is None):
         if (member is None):
             access_log = AccessLog(door = door, fob = fobArg, access_permitted = False, uploaded = False)
@@ -49,8 +50,9 @@ def handle_door_status(dev, cmdLine, cmdArgs):
         else:
             access_log = AccessLog(door = door, member = ampMember, fob = fobArg, access_permitted = False, uploaded = False)
 
+    obs.trigger("door_unlock_attempt", ampMember, door, allowAccess, fobArg)
+
     if (allowAccess and ampMember is not None):
-        obs.trigger("door_unlock", ampMember, door)
         ampMember.last_unlock = datetime.now()
 
     if allowAccess:

@@ -4,13 +4,12 @@ import os
 import errno
 import signal
 import time
+import sys
 from ConfigParser import ConfigParser
 from observable import Observable
 from mcp.db import db
 from mcp.devices import serial_monitor
-from mcp.matrix import matrix
-from mcp.amp import amp
-from mcp.web import web
+from mcp.mq import mq
 
 print("Starting up...")
 
@@ -30,9 +29,7 @@ logger = logging.getLogger(__name__)
 obs = Observable()
 db.init(config)
 serial_monitor.init(config, obs)
-matrix.init(config, obs)
-amp.init(config, obs)
-web.init(config, obs)
+mq.init(config, obs)
 
 def signal_handler(signal, frame):
     print("^C received - shutting down server")

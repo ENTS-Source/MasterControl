@@ -44,6 +44,7 @@ class Member(Base):
     def has_access(self):
         if (self.director):
             return True
+        print(len(self.subscriptions))
         for subscription in self.subscriptions:
             if (subscription.is_today_in_range()):
                 return True
