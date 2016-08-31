@@ -20,9 +20,9 @@ HEARTBEAT_FAILURE_DELTA = timedelta(seconds=120) # When a device is considered b
 
 callables = []
 
-# TODO: Configurable?
+# TODO: Configurable? (should pull from DB)
 class Host:
-    address = 16
+    address = 17
     is_active = False # assume not active to avoid health checks
     last_status_request = datetime.min
     last_status = datetime.min

@@ -52,7 +52,7 @@ def handle_door_unlock(ampMember, door, accessPermitted, fobNumber):
         "doorName": door.name,
         "doorId": door.id,
         "fobNumber": fobNumber,
-        "announce": False if ampMember is None else ampMember.announce,
+        "announce": False if ampMember is None else (ampMember.announce === True),
         "name": "UNKNOWN" if ampMember is None else ampMember.get_announce_name(),
         "timestamp": datetime.now().strftime("%Y-%m-%d-%H-%M-%S"),
         "ampInfo": ampInfo
@@ -102,8 +102,8 @@ def handle_mq_event(body):
                 access["end"] = "2999-01-01"
             dbSubscription = MemberSubscription(
                 member = existingMember,
-                date_from = time.strptime(access["start"], "%Y-%m-%d"),
-                date_to = time.strptime(access["end"], "%Y-%m-%d"),
+                date_from = datetime.strptime(access["start"], "%Y-%m-%d"),
+                date_to = datetime.strptime(access["end"], "%Y-%m-%d"),
                 buffer_days = access["buffer_days"]
             )
             db.session.add(dbSubscription)
