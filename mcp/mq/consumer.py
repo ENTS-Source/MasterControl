@@ -17,11 +17,14 @@ class MqConsumer:
 
     def _attempt_connection(self):
         self._logger.info("Initiating connection...")
-        self._connection = pika.SelectConnection(pika.URLParameters(self._amqpUrl),
-                                                 on_open_callback=self.on_connection_open,
-                                                 on_open_error_callback=self.on_connection_open_error,
-                                                 on_close_callback=self.on_connection_error,
-                                                 stop_ioloop_on_close=False)
+        if self._connection is None:
+            self._connection = pika.SelectConnection(pika.URLParameters(self._amqpUrl),
+                                                     on_open_callback=self.on_connection_open,
+                                                     on_open_error_callback=self.on_connection_open_error,
+                                                     on_close_callback=self.on_connection_error,
+                                                     stop_ioloop_on_close=False)
+        else:
+            self._connection.connect()
         self._connection.ioloop.start()
 
     def on_connection_open(self, unused_connection):
@@ -30,14 +33,17 @@ class MqConsumer:
 
     def on_connection_open_error(self, unused_connection, error_message):
         self._logger.warning("Failed to connect to MQ, reconnecting...")
-        self._connection.ioloop.stop()
+        if (self._connection is not None):
+            self._connection.ioloop.stop()
+        self._connection = None
         self._attempt_connection()
 
     def on_connection_error(self, connection, reply_code, reply_text):
         if self._stopping:
             return
         self._logger.warning("Connection to MQ interrupted, reconnecting...")
-        self._connection.ioloop.stop()
+        if (self._connection is not None):
+            self._connection.ioloop.stop()
         #self._attempt_connection() # reconnection handled in start()
 
     def on_channel_open(self, channel):

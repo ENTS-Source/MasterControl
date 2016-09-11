@@ -42,7 +42,7 @@ class Member(Base):
         return self.first_name
 
     def has_access(self):
-        if (self.director === True):
+        if (self.director == True):
             return True
         for subscription in self.subscriptions:
             if (subscription.is_today_in_range()):
