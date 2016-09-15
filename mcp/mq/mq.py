@@ -40,20 +40,24 @@ def init(incConfig, obs):
 
 def handle_door_unlock(ampMember, door, accessPermitted, fobNumber):
     ampInfo = None
+    announce = False
+    name = "UNKNOWN"
     if ampMember is not None:
         ampInfo = {
             "id": ampMember.id,
             "first_name": ampMember.first_name,
             "last_name": ampMember.last_name
         }
+        announce = ampMember.announce
+        name = ampMember.get_announce_name()
     evt = {
         "type": "UNLOCK_ATTEMPT",
         "permitted": accessPermitted,
         "doorName": door.name,
         "doorId": door.id,
         "fobNumber": fobNumber,
-        "announce": False if ampMember is None else (ampMember.announce == True),
-        "name": "UNKNOWN" if ampMember is None else ampMember.get_announce_name(),
+        "announce": announce,
+        "name": "UNKNOWN" name,
         "timestamp": datetime.now().strftime("%Y-%m-%d-%H-%M-%S"),
         "ampInfo": ampInfo
     }
