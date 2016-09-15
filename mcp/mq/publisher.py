@@ -69,7 +69,7 @@ class MqPublisher:
             self._logger.warning("Channel not available, adding message to backlog")
             self._backlog.append(message)
             return
-        self._logger.debug("Publishing message: " + message)
+        self._logger.debug("Publishing message: " + json.dumps(message))
         self._channel.basic_publish(self._exchangeName, "", json.dumps(message))
 
     def stop(self):
