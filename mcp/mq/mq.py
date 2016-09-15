@@ -57,7 +57,7 @@ def handle_door_unlock(ampMember, door, accessPermitted, fobNumber):
         "doorId": door.id,
         "fobNumber": fobNumber,
         "announce": announce,
-        "name": "UNKNOWN" name,
+        "name": name,
         "timestamp": datetime.now().strftime("%Y-%m-%d-%H-%M-%S"),
         "ampInfo": ampInfo
     }
