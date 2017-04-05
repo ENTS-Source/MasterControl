@@ -114,4 +114,4 @@ def handle_mq_event(body):
         db.session.expire_all()
         db.session.commit()
     else:
-        logger.warning("Unrecongized message received: " + body);
+        logger.warning("Unrecongized message received: " + str(body));
